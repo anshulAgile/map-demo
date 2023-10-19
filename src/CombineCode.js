@@ -9,9 +9,7 @@ function GridComponent() {
   const [code, setCode] = useState(null);
   const [latlng, setlatlng] = useState({});
   const [VERTICAL, setVERTICAL] = useState([]);
-  console.log('VERTICAL: ', VERTICAL);
   const [HORIZONTAL, setHORIZONTAL] = useState([]);
-  console.log('HORIZONTAL: ', HORIZONTAL);
 
   function geohash_encode_uniqueCode(inputLat, inputLong) {
     let northBorder = 90.0;
@@ -20,7 +18,7 @@ function GridComponent() {
     let westBorder = -180.0;
     const noOfLevels = 9;
     const numOfLinesPerLevel = 7;
-    const noOfGridLines = 5;
+    const noOfGridLines = 100;
 
     const base36List = [...Array(10).keys()]
       .map((i) => i.toString())
@@ -152,7 +150,7 @@ function GridComponent() {
         // Calculate the Euclidean distance between the input pair and the current pair
         distance = Math.sqrt(
           Math.pow(inputLat - midPair[0], 2) +
-          Math.pow(inputLong - midPair[1], 2)
+            Math.pow(inputLong - midPair[1], 2)
         );
 
         // Check if the current pair is closer than the previous closest pair
@@ -313,18 +311,19 @@ function GridComponent() {
 
     // Original
     for (let i = 0; i < northLatPtsForTurfList.length; i++) {
-      const pair = [northLatPtsForTurfList[i]?.reverse(), southLatPtsForTurfList[i]?.reverse()];
-      console.log(JSON.stringify(pair) + ",");
-      setVERTICAL((prev) => [...prev, pair])
-
+      const pair = [
+        northLatPtsForTurfList[i]?.reverse(),
+        southLatPtsForTurfList[i]?.reverse(),
+      ];
+      setVERTICAL((prev) => [...prev, pair]);
     }
-    console.log("___________________________________________________");
+    // console.log("___________________________________________________");
     for (let i = 0; i < westLongPtsForTurfList.length; i++) {
-      console.log('westLongPtsForTurfList: ', westLongPtsForTurfList[i]);
-      const pair = [westLongPtsForTurfList[i]?.reverse(), eastLongPtsForTurfList[i]?.reverse()];
-      console.log(JSON.stringify(pair) + ",");
-      setHORIZONTAL((prev) => [...prev, pair])
-
+      const pair = [
+        westLongPtsForTurfList[i]?.reverse(),
+        eastLongPtsForTurfList[i]?.reverse(),
+      ];
+      setHORIZONTAL((prev) => [...prev, pair]);
     }
 
     return b36CodeString;
@@ -443,13 +442,8 @@ function GridComponent() {
     ],
   ];
 
-
-
   useEffect(() => {
-    console.log("HEREEEEEEEEE", VERTICAL?.length);
-
-    if (map && HORIZONTAL?.length) {
-      console.log("HEREEEEEEEEE", VERTICAL);
+    if (map && HORIZONTAL?.length && VERTICAL?.length) {
       console.log(map.getBounds());
 
       const horiArray = [];
@@ -476,61 +470,36 @@ function GridComponent() {
           },
         });
       });
-      console.log('verArray: ', verArray);
-
-      var line = turf.lineString([
-        [
-          [
-            72.56615797896669,
-            23.0289780521262
-          ],
-          [
-            72.56647948102417,
-            23.0289780521262
-          ]
-        ],
-        [
-          [
-            72.56615797896669,
-            23.02881730109739
-          ],
-          [
-            72.56647948102417,
-            23.02881730109739
-          ]
-        ]
-      ]);
-      var splitter = turf.lineString([[130.12312, -15], [130, -35]]);
-
-      var split = turf.lineSplit(line, splitter);
 
       // Create a FeatureCollection containing both lines
       const lines = turf.featureCollection([...horiArray, ...verArray]);
 
       // Add the lines FeatureCollection to the map as a source
-      map.addSource("lines", {
-        type: "geojson",
-        data: lines,
-      });
+      if (!map.getSource("lines")) {
+        map.addSource("lines", {
+          type: "geojson",
+          data: lines,
+        });
 
-      // Customize the layer styles for the lines
-      map.addLayer({
-        id: `lines-layer-${Math.random()}`,
-        type: "line",
-        source: "lines",
-        layout: {},
-        paint: {
-          "line-color": "blue",
-          "line-width": 3,
-        },
-      });
+        // Customize the layer styles for the lines
+        map.addLayer({
+          id: `lines-layer-${Math.random()}`,
+          type: "line",
+          source: "lines",
+          layout: {},
+          paint: {
+            "line-color": "blue",
+            "line-width": 1,
+          },
+        });
+      }
     }
     if (map) {
       map.on("click", (e) => {
-        console.log(e);
+        // console.log(e);
         setlatlng({ lat: e.lngLat.lat, lng: e.lngLat.lng });
         const geocode = geohash_encode_uniqueCode(e.lngLat.lat, e.lngLat.lng);
-        console.log('geocode: ', geocode);
+        console.log("geocode: ", geocode);
         setCode(geocode);
       });
     }
