@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import distance from "@turf/distance";
-import { getGrid } from "./calc"; // Create a file named 'calc.js' with the 'getGrid' function
 import * as turf from "@turf/turf";
+import { labelGenerator } from "./labelGenerator";
 function GridComponent() {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
@@ -18,7 +17,7 @@ function GridComponent() {
     let westBorder = -180.0;
     const noOfLevels = 9;
     const numOfLinesPerLevel = 7;
-    const noOfGridLines = 100;
+    const noOfGridLines = 200;
 
     const base36List = [...Array(10).keys()]
       .map((i) => i.toString())
@@ -150,7 +149,7 @@ function GridComponent() {
         // Calculate the Euclidean distance between the input pair and the current pair
         distance = Math.sqrt(
           Math.pow(inputLat - midPair[0], 2) +
-            Math.pow(inputLong - midPair[1], 2)
+          Math.pow(inputLong - midPair[1], 2)
         );
 
         // Check if the current pair is closer than the previous closest pair
@@ -310,21 +309,28 @@ function GridComponent() {
     ]);
 
     // Original
+    let VA = [];
     for (let i = 0; i < northLatPtsForTurfList.length; i++) {
       const pair = [
         northLatPtsForTurfList[i]?.reverse(),
         southLatPtsForTurfList[i]?.reverse(),
       ];
-      setVERTICAL((prev) => [...prev, pair]);
+      VA.push(pair)
     }
+    const uniqueArrayVA = [...new Set(VA)];
+    setVERTICAL(uniqueArrayVA);
+
+    let HA = [];
     // console.log("___________________________________________________");
     for (let i = 0; i < westLongPtsForTurfList.length; i++) {
       const pair = [
         westLongPtsForTurfList[i]?.reverse(),
         eastLongPtsForTurfList[i]?.reverse(),
       ];
-      setHORIZONTAL((prev) => [...prev, pair]);
+      HA.push(pair);
     }
+    const uniqueArrayHA = [...new Set(HA)];
+    setHORIZONTAL(uniqueArrayHA);
 
     return b36CodeString;
   }
@@ -344,9 +350,27 @@ function GridComponent() {
       ],
     });
 
+
     mapInstance.on("load", () => {
       setMap(mapInstance);
-      console.log(mapInstance.getBounds().getCenter());
+      const centerCoordinates = mapInstance.getCenter();
+
+      setlatlng({ lat: centerCoordinates.lat, lng: centerCoordinates.lng });
+      setHORIZONTAL([])
+      setVERTICAL([])
+      const geocode = geohash_encode_uniqueCode(centerCoordinates.lat, centerCoordinates.lng);
+      console.log("geocode: ", geocode);
+      setCode(geocode);
+
+    });
+
+    mapInstance.on('dragend', function (event) {
+      const centerCoordinates = mapInstance.getCenter();
+      console.log('centerCoordinates: ', centerCoordinates);
+
+      console.log('event: ', event);
+      // This event is triggered when the map drag ends.
+      // You can add your custom logic here.
     });
 
     return () => {
@@ -356,91 +380,6 @@ function GridComponent() {
     };
   }, []);
 
-  const vertical = [
-    [
-      [72.58475151463188, 23.033729138088702],
-      [72.58459076360313, 23.033729138088702],
-    ],
-    [
-      [72.58475151463188, 23.03376486053955],
-      [72.58459076360313, 23.03376486053955],
-    ],
-    [
-      [72.58475151463188, 23.033800582990395],
-      [72.58459076360313, 23.033800582990395],
-    ],
-    [
-      [72.58475151463188, 23.03383630544124],
-      [72.58459076360313, 23.03383630544124],
-    ],
-    [
-      [72.58475151463188, 23.033872027892087],
-      [72.58459076360313, 23.033872027892087],
-    ],
-    [
-      [72.58475151463188, 23.033907750342934],
-      [72.58459076360313, 23.033907750342934],
-    ],
-    [
-      [72.58475151463188, 23.03394347279378],
-      [72.58459076360313, 23.03394347279378],
-    ],
-    [
-      [72.58475151463188, 23.033979195244626],
-      [72.58459076360313, 23.033979195244626],
-    ],
-    [
-      [72.58475151463188, 23.034014917695472],
-      [72.58459076360313, 23.034014917695472],
-    ],
-    [
-      [72.58475151463188, 23.03405064014632],
-      [72.58459076360313, 23.03405064014632],
-    ],
-  ];
-
-  const horizontal = [
-    [
-      [72.58475151463188, 23.033729138088702],
-      [72.58475151463188, 23.03405064014632],
-    ],
-    [
-      [72.58473365340646, 23.033729138088702],
-      [72.58473365340646, 23.03405064014632],
-    ],
-    [
-      [72.58471579218104, 23.033729138088702],
-      [72.58471579218104, 23.03405064014632],
-    ],
-    [
-      [72.58469793095563, 23.033729138088702],
-      [72.58469793095563, 23.03405064014632],
-    ],
-    [
-      [72.58468006973021, 23.033729138088702],
-      [72.58468006973021, 23.03405064014632],
-    ],
-    [
-      [72.5846622085048, 23.033729138088702],
-      [72.5846622085048, 23.03405064014632],
-    ],
-    [
-      [72.58464434727938, 23.033729138088702],
-      [72.58464434727938, 23.03405064014632],
-    ],
-    [
-      [72.58462648605396, 23.033729138088702],
-      [72.58462648605396, 23.03405064014632],
-    ],
-    [
-      [72.58460862482855, 23.033729138088702],
-      [72.58460862482855, 23.03405064014632],
-    ],
-    [
-      [72.58459076360313, 23.033729138088702],
-      [72.58459076360313, 23.03405064014632],
-    ],
-  ];
 
   useEffect(() => {
     if (map && HORIZONTAL?.length && VERTICAL?.length) {
@@ -476,17 +415,20 @@ function GridComponent() {
       console.log("lines: ", lines);
 
       // Add the lines FeatureCollection to the map as a source
-      if (!map.getSource("lines")) {
-        map.addSource("lines", {
+
+      if (map.getSource("lines")) {
+        map.removeLayer("lines-layer")
+        map.removeSource('lines');
+        map.addSource(`lines`, {
           type: "geojson",
           data: lines,
         });
 
         // Customize the layer styles for the lines
         map.addLayer({
-          id: `lines-layer-${Math.random()}`,
+          id: `lines-layer`,
           type: "line",
-          source: "lines",
+          source: `lines`,
           layout: {},
           paint: {
             "line-color": "gray",
@@ -494,13 +436,44 @@ function GridComponent() {
           },
         });
       }
+      else {
+        let inc = Math.random()
+
+        map.addSource(`lines`, {
+          type: "geojson",
+          data: lines,
+        });
+
+        // Customize the layer styles for the lines
+        map.addLayer({
+          id: `lines-layer`,
+          type: "line",
+          source: `lines`,
+          layout: {},
+          paint: {
+            "line-color": "gray",
+            "line-width": 0.5,
+          },
+        });
+
+      }
     }
     if (map) {
-      map.on("click", (e) => {
-        // console.log(e);
-        setlatlng({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-        const geocode = geohash_encode_uniqueCode(e.lngLat.lat, e.lngLat.lng);
+
+      map.on("dragend", (e) => {
+        const centerCoordinates = map.getCenter();
+
+        setlatlng({ lat: centerCoordinates.lat, lng: centerCoordinates.lng });
+        setHORIZONTAL([])
+        setVERTICAL([])
+        const geocode = geohash_encode_uniqueCode(centerCoordinates.lat, centerCoordinates.lng);
         console.log("geocode: ", geocode);
+        setCode(geocode);
+      });
+
+      map.on("click", (e) => {
+        const geocode = labelGenerator(e.lngLat.lat, e.lngLat.lng)
+        setlatlng({ lat: e.lngLat.lat, lng: e.lngLat.lng });
         setCode(geocode);
       });
     }
