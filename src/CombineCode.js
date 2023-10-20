@@ -473,6 +473,7 @@ function GridComponent() {
 
       // Create a FeatureCollection containing both lines
       const lines = turf.featureCollection([...horiArray, ...verArray]);
+      console.log("lines: ", lines);
 
       // Add the lines FeatureCollection to the map as a source
       if (!map.getSource("lines")) {
