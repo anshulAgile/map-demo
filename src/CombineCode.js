@@ -3,6 +3,25 @@ import mapboxgl from "mapbox-gl";
 import distance from "@turf/distance";
 import { getGrid } from "./calc"; // Create a file named 'calc.js' with the 'getGrid' function
 import * as turf from "@turf/turf";
+
+const createMapInstance = (mapContainerRef, remove = false) => {
+  mapboxgl.accessToken =
+    "pk.eyJ1IjoidGVtaXZhZDUyOCIsImEiOiJjbG1vcHZwcDcwbmQyMmtxZ2swbzRpcDg3In0.TXygp4-Xx5L0mApEDJ-DFw"; // Replace with your Mapbox access token
+
+  const mapInstance = new mapboxgl.Map({
+    container: mapContainerRef.current,
+    style: "mapbox://styles/mapbox/streets-v12",
+    center: [72.585022, 23.033863],
+    zoom: 18,
+    maxBounds: [
+      [-180, -90],
+      [180, 90],
+    ],
+  });
+
+  return mapInstance;
+};
+
 function GridComponent() {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
@@ -12,8 +31,6 @@ function GridComponent() {
   const [HORIZONTAL, setHORIZONTAL] = useState([]);
 
   function geohash_encode_uniqueCode(inputLat, inputLong) {
-    setVERTICAL([]);
-    setHORIZONTAL([]);
     let northBorder = 90.0;
     let southBorder = -90.0;
     let eastBorder = 180.0;
@@ -26,18 +43,10 @@ function GridComponent() {
       .map((i) => i.toString())
       .concat([...Array(26).keys()].map((i) => String.fromCharCode(65 + i)));
 
-    // console.log("base36List: ", base36List);
-
-    // console.log("\n++++++++++++ GPS TO LABEL ++++++++++++", inputLat, inputLong);
-
     inputLat = inputLat * 1.0;
     inputLong = inputLong * 1.0;
-    const inputCoord = [inputLat, inputLong];
-
-    // console.log("\nInput GPS coordinate: ", inputCoord);
 
     const b36Code = [];
-    const midPointList = [];
 
     // Check if the lat input is a number (including numbers with .00 decimals), if yes, add a small value to avoid floating point issues
     if (Number.isInteger(inputLat)) {
@@ -61,8 +70,7 @@ function GridComponent() {
       }
     }
 
-    // console.log("\nInput GPS coordinate: ", inputLat, inputLong);
-
+    const midPointList = [];
     for (let levelIndex = 0; levelIndex < noOfLevels; levelIndex++) {
       // Calculate the step size
       const latStepSize =
@@ -72,9 +80,6 @@ function GridComponent() {
       // Initialize arrays to store the latitude and longitude values
       const latList = [];
       const longList = [];
-
-      // console.log("\n latStepSize: ", latStepSize);
-      // console.log("\n longStepSize: ", longStepSize);
 
       // Generate the latitude and longitude values
       for (let i = 0; i < numOfLinesPerLevel; i++) {
@@ -119,9 +124,6 @@ function GridComponent() {
         longListMid.push(midpoint);
       }
 
-      // console.log("\n latListMid: ", latListMid);
-      // console.log("\n longListMid: ", longListMid);
-
       // Create an object to represent the DataFrame
       const dfMid = {};
 
@@ -135,8 +137,6 @@ function GridComponent() {
       // console.log("DataFrameMID: ", dfMid);
 
       const midValues = Object.values(dfMid);
-
-      // console.log("midValues: ", midValues);
 
       // Initialize variables to store the closest pair and its index
       let closestIndex = null;
@@ -210,12 +210,6 @@ function GridComponent() {
       midPointList.push(closestPair);
     }
 
-    // console.log(
-    //   `\nOutput coordinates for the given coordinate: ${
-    //     midPointList[noOfLevels - 1]
-    //   }\n`
-    // );
-
     const finalB36Code = [];
 
     // Use the index values to access and print data values
@@ -228,8 +222,6 @@ function GridComponent() {
     }
 
     const b36CodeString = finalB36Code.join("");
-    // console.log("Output Label: ", b36CodeString);
-    // }
 
     let dLat = northBorder - southBorder;
     let dLong = westBorder - eastBorder;
@@ -311,61 +303,52 @@ function GridComponent() {
       longListLast,
     ]);
 
-    // Original
+    let vertiArray = [];
     for (let i = 0; i < northLatPtsForTurfList.length; i++) {
       const pair = [
         northLatPtsForTurfList[i]?.reverse(),
         southLatPtsForTurfList[i]?.reverse(),
       ];
-
-      setVERTICAL((prev) => [...prev, pair]);
+      vertiArray.push(pair);
     }
-    // console.log("___________________________________________________");
+
+    let horiArray = [];
     for (let i = 0; i < westLongPtsForTurfList.length; i++) {
       const pair = [
         westLongPtsForTurfList[i]?.reverse(),
         eastLongPtsForTurfList[i]?.reverse(),
       ];
-      setHORIZONTAL((prev) => [...prev, pair]);
+      horiArray.push(pair);
     }
 
-    return b36CodeString;
+    return { b36CodeString, horiArray, vertiArray };
   }
   console.log("Horiii", HORIZONTAL);
   console.log("Verti", VERTICAL);
 
   useEffect(() => {
-    mapboxgl.accessToken =
-      "pk.eyJ1IjoidGVtaXZhZDUyOCIsImEiOiJjbG1vcHZwcDcwbmQyMmtxZ2swbzRpcDg3In0.TXygp4-Xx5L0mApEDJ-DFw"; // Replace with your Mapbox access token
+    setMap(createMapInstance(mapContainerRef));
+  }, []);
 
-    const mapInstance = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [72.585022, 23.033863],
-      zoom: 18,
-      maxBounds: [
-        [-180, -90],
-        [180, 90],
-      ],
-    });
-
-    mapInstance.on("load", () => {
-      setMap(mapInstance);
-      console.log(mapInstance.getBounds().getCenter());
-    });
-    mapInstance.on("moveend", () => {
-      setMap(mapInstance);
-      const centerPoint = mapInstance.getCenter();
-      geohash_encode_uniqueCode(centerPoint.lat, centerPoint.lng);
-      console.log(mapInstance.getBounds().getCenter());
-    });
+  useEffect(() => {
+    if (map) {
+      map.on("moveend", () => {
+        const centerPoint = map.getCenter();
+        const result = geohash_encode_uniqueCode(
+          centerPoint.lat,
+          centerPoint.lng
+        );
+        console.log("result: ", result);
+        console.log(map.getBounds().getCenter());
+      });
+    }
 
     return () => {
-      if (mapInstance) {
-        mapInstance.remove();
+      if (map) {
+        map?.remove();
       }
     };
-  }, []);
+  }, [map]);
 
   useEffect(() => {
     if (map && HORIZONTAL?.length && VERTICAL?.length) {
@@ -430,6 +413,9 @@ function GridComponent() {
       });
     }
   }, [map, HORIZONTAL, VERTICAL, code]);
+
+  const afterMapLoaded = () => {};
+  const onDragEnd = () => {};
 
   return (
     <div>
