@@ -488,8 +488,8 @@ function GridComponent() {
           source: "lines",
           layout: {},
           paint: {
-            "line-color": "blue",
-            "line-width": 1,
+            "line-color": "gray",
+            "line-width": 0.5,
           },
         });
       }
