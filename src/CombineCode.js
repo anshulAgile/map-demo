@@ -1,27 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import distance from "@turf/distance";
-import { getGrid } from "./calc"; // Create a file named 'calc.js' with the 'getGrid' function
 import * as turf from "@turf/turf";
-
-const createMapInstance = (mapContainerRef, remove = false) => {
-  mapboxgl.accessToken =
-    "pk.eyJ1IjoidGVtaXZhZDUyOCIsImEiOiJjbG1vcHZwcDcwbmQyMmtxZ2swbzRpcDg3In0.TXygp4-Xx5L0mApEDJ-DFw"; // Replace with your Mapbox access token
-
-  const mapInstance = new mapboxgl.Map({
-    container: mapContainerRef.current,
-    style: "mapbox://styles/mapbox/streets-v12",
-    center: [72.585022, 23.033863],
-    zoom: 18,
-    maxBounds: [
-      [-180, -90],
-      [180, 90],
-    ],
-  });
-
-  return mapInstance;
-};
-
+import { labelGenerator } from "./labelGenerator";
 function GridComponent() {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
@@ -37,16 +17,24 @@ function GridComponent() {
     let westBorder = -180.0;
     const noOfLevels = 9;
     const numOfLinesPerLevel = 7;
-    const noOfGridLines = 100;
+    const noOfGridLines = 130;
 
     const base36List = [...Array(10).keys()]
       .map((i) => i.toString())
       .concat([...Array(26).keys()].map((i) => String.fromCharCode(65 + i)));
 
+    // console.log("base36List: ", base36List);
+
+    // console.log("\n++++++++++++ GPS TO LABEL ++++++++++++", inputLat, inputLong);
+
     inputLat = inputLat * 1.0;
     inputLong = inputLong * 1.0;
+    const inputCoord = [inputLat, inputLong];
+
+    // console.log("\nInput GPS coordinate: ", inputCoord);
 
     const b36Code = [];
+    const midPointList = [];
 
     // Check if the lat input is a number (including numbers with .00 decimals), if yes, add a small value to avoid floating point issues
     if (Number.isInteger(inputLat)) {
@@ -70,7 +58,8 @@ function GridComponent() {
       }
     }
 
-    const midPointList = [];
+    // console.log("\nInput GPS coordinate: ", inputLat, inputLong);
+
     for (let levelIndex = 0; levelIndex < noOfLevels; levelIndex++) {
       // Calculate the step size
       const latStepSize =
@@ -80,6 +69,9 @@ function GridComponent() {
       // Initialize arrays to store the latitude and longitude values
       const latList = [];
       const longList = [];
+
+      // console.log("\n latStepSize: ", latStepSize);
+      // console.log("\n longStepSize: ", longStepSize);
 
       // Generate the latitude and longitude values
       for (let i = 0; i < numOfLinesPerLevel; i++) {
@@ -124,6 +116,9 @@ function GridComponent() {
         longListMid.push(midpoint);
       }
 
+      // console.log("\n latListMid: ", latListMid);
+      // console.log("\n longListMid: ", longListMid);
+
       // Create an object to represent the DataFrame
       const dfMid = {};
 
@@ -137,6 +132,8 @@ function GridComponent() {
       // console.log("DataFrameMID: ", dfMid);
 
       const midValues = Object.values(dfMid);
+
+      // console.log("midValues: ", midValues);
 
       // Initialize variables to store the closest pair and its index
       let closestIndex = null;
@@ -210,6 +207,12 @@ function GridComponent() {
       midPointList.push(closestPair);
     }
 
+    // console.log(
+    //   `\nOutput coordinates for the given coordinate: ${
+    //     midPointList[noOfLevels - 1]
+    //   }\n`
+    // );
+
     const finalB36Code = [];
 
     // Use the index values to access and print data values
@@ -222,6 +225,8 @@ function GridComponent() {
     }
 
     const b36CodeString = finalB36Code.join("");
+    // console.log("Output Label: ", b36CodeString);
+    // }
 
     let dLat = northBorder - southBorder;
     let dLong = westBorder - eastBorder;
@@ -303,52 +308,78 @@ function GridComponent() {
       longListLast,
     ]);
 
-    let vertiArray = [];
+    // Original
+    let VA = [];
     for (let i = 0; i < northLatPtsForTurfList.length; i++) {
       const pair = [
         northLatPtsForTurfList[i]?.reverse(),
         southLatPtsForTurfList[i]?.reverse(),
       ];
-      vertiArray.push(pair);
+      VA.push(pair);
     }
+    const uniqueArrayVA = [...new Set(VA)];
+    setVERTICAL(uniqueArrayVA);
 
-    let horiArray = [];
+    let HA = [];
+    // console.log("___________________________________________________");
     for (let i = 0; i < westLongPtsForTurfList.length; i++) {
       const pair = [
         westLongPtsForTurfList[i]?.reverse(),
         eastLongPtsForTurfList[i]?.reverse(),
       ];
-      horiArray.push(pair);
+      HA.push(pair);
     }
+    const uniqueArrayHA = [...new Set(HA)];
+    setHORIZONTAL(uniqueArrayHA);
 
-    return { b36CodeString, horiArray, vertiArray };
+    return b36CodeString;
   }
-  console.log("Horiii", HORIZONTAL);
-  console.log("Verti", VERTICAL);
 
   useEffect(() => {
-    setMap(createMapInstance(mapContainerRef));
-  }, []);
+    mapboxgl.accessToken =
+      "pk.eyJ1IjoidGVtaXZhZDUyOCIsImEiOiJjbG1vcHZwcDcwbmQyMmtxZ2swbzRpcDg3In0.TXygp4-Xx5L0mApEDJ-DFw"; // Replace with your Mapbox access token
 
-  useEffect(() => {
-    if (map) {
-      map.on("moveend", () => {
-        const centerPoint = map.getCenter();
-        const result = geohash_encode_uniqueCode(
-          centerPoint.lat,
-          centerPoint.lng
-        );
-        console.log("result: ", result);
-        console.log(map.getBounds().getCenter());
-      });
-    }
+    const mapInstance = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [72.585022, 23.033863],
+      zoom: 18,
+      maxBounds: [
+        [-180, -90],
+        [180, 90],
+      ],
+    });
+
+    mapInstance.on("load", () => {
+      setMap(mapInstance);
+      const centerCoordinates = mapInstance.getCenter();
+
+      setlatlng({ lat: centerCoordinates.lat, lng: centerCoordinates.lng });
+      setHORIZONTAL([]);
+      setVERTICAL([]);
+      const geocode = geohash_encode_uniqueCode(
+        centerCoordinates.lat,
+        centerCoordinates.lng
+      );
+      console.log("geocode: ", geocode);
+      setCode(geocode);
+    });
+
+    mapInstance.on("dragend", function (event) {
+      const centerCoordinates = mapInstance.getCenter();
+      console.log("centerCoordinates: ", centerCoordinates);
+
+      console.log("event: ", event);
+      // This event is triggered when the map drag ends.
+      // You can add your custom logic here.
+    });
 
     return () => {
-      if (map) {
-        map?.remove();
+      if (mapInstance) {
+        mapInstance.remove();
       }
     };
-  }, [map]);
+  }, []);
 
   useEffect(() => {
     if (map && HORIZONTAL?.length && VERTICAL?.length) {
@@ -384,17 +415,39 @@ function GridComponent() {
       console.log("lines: ", lines);
 
       // Add the lines FeatureCollection to the map as a source
-      if (!map.getSource("lines")) {
-        map.addSource("lines", {
+
+      if (map.getSource("lines")) {
+        map.removeLayer("lines-layer");
+        map.removeSource("lines");
+        map.addSource(`lines`, {
           type: "geojson",
           data: lines,
         });
 
         // Customize the layer styles for the lines
         map.addLayer({
-          id: `lines-layer-${Math.random()}`,
+          id: `lines-layer`,
           type: "line",
-          source: "lines",
+          source: `lines`,
+          layout: {},
+          paint: {
+            "line-color": "gray",
+            "line-width": 0.3,
+          },
+        });
+      } else {
+        let inc = Math.random();
+
+        map.addSource(`lines`, {
+          type: "geojson",
+          data: lines,
+        });
+
+        // Customize the layer styles for the lines
+        map.addLayer({
+          id: `lines-layer`,
+          type: "line",
+          source: `lines`,
           layout: {},
           paint: {
             "line-color": "gray",
@@ -404,18 +457,27 @@ function GridComponent() {
       }
     }
     if (map) {
-      map.on("click", (e) => {
-        // console.log(e);
-        setlatlng({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-        const geocode = geohash_encode_uniqueCode(e.lngLat.lat, e.lngLat.lng);
+      map.on("dragend", (e) => {
+        const centerCoordinates = map.getCenter();
+
+        setlatlng({ lat: centerCoordinates.lat, lng: centerCoordinates.lng });
+        setHORIZONTAL([]);
+        setVERTICAL([]);
+        const geocode = geohash_encode_uniqueCode(
+          centerCoordinates.lat,
+          centerCoordinates.lng
+        );
         console.log("geocode: ", geocode);
         setCode(geocode);
       });
-    }
-  }, [map, HORIZONTAL, VERTICAL, code]);
 
-  const afterMapLoaded = () => {};
-  const onDragEnd = () => {};
+      map.on("click", (e) => {
+        const geocode = labelGenerator(e.lngLat.lat, e.lngLat.lng);
+        setlatlng({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        setCode(geocode);
+      });
+    }
+  }, [map, HORIZONTAL, VERTICAL]);
 
   return (
     <div>
